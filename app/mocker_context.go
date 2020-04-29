@@ -99,7 +99,7 @@ func Start() {
 	go func() {
 		err := <- errChan
 		if err == nil {
-			log.Println("Mocker服务已启动")
+			log.Println("Mocker服务已启动->", "http://" + address)
 		} else {
 			log.Fatal("Mocker服务启动失败:", err)
 		}
