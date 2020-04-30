@@ -64,7 +64,8 @@ func init() {
 		// 真垃圾，连判断是否有某个option的方法都没有
 		flag.BoolVar(&autoRefresh, constant.APP_AUTO_REFRESH_ARG, false, "是否自动刷新")
 		// 真傻叉，居然对同一个option不能解析两次
-		//tmp := flag.Bool(constant.APP_AUTO_REFRESH_ARG, true, "是否自动刷新")
+		//tmp2 := flag.Bool(constant.APP_AUTO_REFRESH_ARG, true, "是否自动刷新")
+		//println(tmp2)
 		//flag.Parse()
 	}
 	flag.StringVar(&address, constant.APP_SERVER_ADDRESS_ARG, "localhost:8866", "服务地址")
@@ -76,6 +77,7 @@ func init() {
 	count := linq.From(appSettings.MockProjects).SelectT(func(p setting.ProjectSettings) string {
 		return p.Name
 	}).Distinct().Count()
+
 	if count != len(appSettings.MockProjects) {
 		panic(fmt.Errorf("%s里存在相同的项目配置", constant.APP_CONFIG_NAME))
 	}
@@ -300,7 +302,7 @@ func processProject(settings []setting.ProjectSettings) {
 		_ = jsoniter.Unmarshal(projectConfigBytes, set)
 		prefix := set.Prefix
 		if !strings.HasPrefix(prefix, constant.URI_START_CHAR) {
-			panic(fmt.Sprintf("%s里没有配置正确的prefix", constant.PROJECT_CONFIG_NAME))
+			panic(fmt.Sprintf("%s里没有配置正确的prefix:%s", constant.PROJECT_CONFIG_NAME, prefix))
 		}
 
 		// 这个apiMap又属于某个Project
