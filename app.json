@@ -2,7 +2,7 @@
   "autoRefresh": false,
   "mockProjects": [
     {
-      "name": "demo01",
+      "name": "demo01ss",
       "path": "mock-projects/demo01"
     }
   ]
