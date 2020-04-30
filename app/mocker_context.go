@@ -27,6 +27,7 @@ var autoRefresh bool
 
 var projectSettings map[string]setting.ProjectSettings
 
+// 默认这个地址
 var address string
 
 var server *http.Server
@@ -53,8 +54,6 @@ func init() {
 		panic("应用配置不符合格式要求")
 	}
 
-	address = appSettings.Address
-
 	tmp := linq.From(os.Args).WhereT(func(a string) bool {
 		return strings.HasPrefix(a, fmt.Sprintf("-%s", constant.APP_AUTO_REFRESH_ARG))
 	}).First()
@@ -66,8 +65,10 @@ func init() {
 		flag.BoolVar(&autoRefresh, constant.APP_AUTO_REFRESH_ARG, false, "是否自动刷新")
 		// 真傻叉，居然对同一个option不能解析两次
 		//tmp := flag.Bool(constant.APP_AUTO_REFRESH_ARG, true, "是否自动刷新")
-		flag.Parse()
+		//flag.Parse()
 	}
+	flag.StringVar(&address, constant.APP_SERVER_ADDRESS_ARG, "localhost:8866", "服务地址")
+	flag.Parse()
 
 	// 处理projects
 	processProject(appSettings.MockProjects)
@@ -85,8 +86,10 @@ func init() {
 		projectSettings[p.Name] = p
 	})
 	//fmt.Println("sfjlidfji88888888888", autoRefresh)
-	// 开启或关闭自动刷新
-	toggleRefresh(autoRefresh)
+	// 开启文件监听
+	if autoRefresh {
+		toggleRefresh(autoRefresh)
+	}
 }
 
 func Start() {
@@ -182,8 +185,7 @@ func toggleRefresh(flag bool) {
 		}
 	}()
 	if flag {
-		log.Println("开启文件监听，注意地址等配置无法动态生效")
-		log.Println("<-如果要动态增加配置，如项目配置接口配置，请先增加文件后再完整修改原配置文件后保存->")
+		log.Println("开启文件监听")
 		fileWatcher, _ := fsnotify.NewWatcher()
 		// 首先监听app.json
 		_ = fileWatcher.Add(constant.APP_CONFIG_PATH)
