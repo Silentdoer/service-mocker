@@ -92,7 +92,6 @@ func Start() {
 		WriteTimeout: 60 * time.Second,
 	}
 	serveMuxHandler = http.NewServeMux()
-	//serveMuxHandler.Handle("/", loggingHandler(http.HandlerFunc(handleMockRequests)))
 	initMockHandlers(serveMuxHandler)
 	server.Handler = serveMuxHandler
 	err := server.ListenAndServe()
@@ -109,7 +108,12 @@ func Stop() {
 }
 
 func initMockHandlers(mux *http.ServeMux) {
-	mux.Handle("/", loggingHandler(generateMockHandler("我是响应")))
+	//mux.Handle("/", loggingHandler(generateMockHandler("我是响应")))
+	for _, val := range projectSettings {
+		for _, api := range val.APIs {
+			mux.Handle(ph.Join(val.Prefix, api.API), loggingHandler(generateMockHandler(fmt.Sprint(api.ResponseValue))))
+		}
+	}
 }
 
 func generateMockHandler(respStr string) http.Handler {
@@ -126,7 +130,7 @@ func loggingHandler(next http.Handler) http.Handler {
 		starts := time.Now()
 		log.Printf("Started->%s, %s\n", request.URL, request.Method)
 		next.ServeHTTP(writer, request)
-		log.Printf("Completed->%s in %v", request.URL, time.Since(starts))
+		log.Printf("Completed->%s in %v\n\n", request.URL, time.Since(starts))
 	})
 }
 

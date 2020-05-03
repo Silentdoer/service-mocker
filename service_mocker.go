@@ -9,8 +9,8 @@ package main
 	"net/http"
 )*/
 import (
+	"service-mocker/app"
 	_ "service-mocker/app"
-	"time"
 )
 
 /*
@@ -40,5 +40,5 @@ func main() {
 	//tmp := flag.Bool(constant.APP_AUTO_REFRESH_ARG, false, "是否自动刷新")
 	//flag.Parse()
 	//println(*tmp)
-	time.Sleep(3 * time.Second)
+	app.Start()
 }
