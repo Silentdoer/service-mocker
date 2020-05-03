@@ -94,10 +94,23 @@ func Start() {
 	serveMuxHandler = http.NewServeMux()
 	initMockHandlers(serveMuxHandler)
 	server.Handler = serveMuxHandler
-	err := server.ListenAndServe()
-	if err != nil {
-		panic(fmt.Errorf("启动服务报错:%s\n", err.Error()))
-	}
+
+	var errChan = make(chan error)
+	go func() {
+		err := <- errChan
+		if err == nil {
+			log.Println("Mocker服务已启动")
+		} else {
+			log.Fatal("Mocker服务启动失败:", err)
+		}
+	}()
+	// 想法很好，可惜自己忘了一件事，，就是这里必须产生了错误才会返回。。。，所以上面的协程只能处理失败情况，这里再加个协程来发启动成功的信息吧
+	go func() {
+		// 1秒用于监听启动绝大多数都够了。。
+		time.Sleep(1 * time.Second)
+		errChan <- nil
+	}()
+	errChan <- server.ListenAndServe()
 }
 
 func Stop() {
