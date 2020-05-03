@@ -1,0 +1,15 @@
+{
+  "prefix": "/demo01",
+  "APIs": [
+    {
+      "API": "/test01",
+      "responseValue": {
+        "name": "silentdoer是否"
+      }
+    },
+    {
+      "API": "/test02",
+      "responseRef": "responses/test02.json"
+    }
+  ]
+}
