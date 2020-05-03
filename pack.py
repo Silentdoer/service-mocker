@@ -91,12 +91,12 @@ if __name__ == "__main__":
                 recompile_flag = val[1]
     # print(recompile_flag)
     if recompile_flag == str(True).lower():
-        print("开始重新编译项目")
+        print("开始重新构建项目")
         result = os.system(REBUILD_COMMAND)
         if result == 0:
-            print("重新编译成功")
+            print("重新构建成功")
         else:
-            print("重新编译失败")
+            print("重新构建失败")
             sys.exit(-1)
 
     # 创建/清空输出目录
