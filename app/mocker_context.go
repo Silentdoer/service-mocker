@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ahmetb/go-linq/v3"
+	"github.com/fsnotify/fsnotify"
 	"github.com/json-iterator/go"
 	"io/ioutil"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"service-mocker/app/constant"
 	"service-mocker/app/setting"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,6 +32,8 @@ var address string
 var server *http.Server
 
 var serveMuxHandler *http.ServeMux
+
+var fileWatcher *fsnotify.Watcher
 
 func init() {
 	file, err := os.Open(constant.APP_CONFIG_PATH)
@@ -80,7 +84,7 @@ func init() {
 	linq.From(appSettings.MockProjects).ForEachT(func(p setting.ProjectSettings) {
 		projectSettings[p.Name] = p
 	})
-
+	//fmt.Println("sfjlidfji88888888888", autoRefresh)
 	// 开启或关闭自动刷新
 	toggleRefresh(autoRefresh)
 }
@@ -92,7 +96,9 @@ func Start() {
 		WriteTimeout: 60 * time.Second,
 	}
 	serveMuxHandler = http.NewServeMux()
-	initMockHandlers(serveMuxHandler)
+	//buildMockHandlers(serveMuxHandler)
+	// 在总开关里处理所有的请求，这样可以实现动态的生成“接口”和响应数据
+	serveMuxHandler.Handle("/", loggingHandler(http.HandlerFunc(processMockRequests)))
 	server.Handler = serveMuxHandler
 
 	var errChan = make(chan error)
@@ -104,13 +110,16 @@ func Start() {
 			log.Fatal("Mocker服务启动失败:", err)
 		}
 	}()
-	// 想法很好，可惜自己忘了一件事，，就是这里必须产生了错误才会返回。。。，所以上面的协程只能处理失败情况，这里再加个协程来发启动成功的信息吧
+	// 想法很好，可惜自己忘了一件事，，就是这里必须产生了错误才会返回。。。，所以上面的协程只能处理失败情况
+	//，这里再加个协程来发启动成功的信息吧
 	go func() {
 		// 1秒用于监听启动绝大多数都够了。。
 		time.Sleep(1 * time.Second)
 		errChan <- nil
 	}()
+	//fmt.Println("444444444")
 	errChan <- server.ListenAndServe()
+	time.Sleep(1 * time.Second)
 }
 
 func Stop() {
@@ -120,7 +129,23 @@ func Stop() {
 	}
 }
 
-func initMockHandlers(mux *http.ServeMux) {
+func processMockRequests(writer http.ResponseWriter, request *http.Request) {
+	for _, val := range projectSettings {
+		for _, api := range val.APIs {
+			//mux.Handle(ph.Join(val.Prefix, api.API), loggingHandler(generateMockHandler(fmt.Sprint(api.ResponseValue))))
+			uri := ph.Join(val.Prefix, api.API)
+			if request.RequestURI == uri {
+				_, err := writer.Write([]byte(fmt.Sprint(api.ResponseValue)))
+				if err != nil {
+					log.Println("处理请求:", request.RequestURI, "失败")
+				}
+			}
+		}
+	}
+}
+
+// 这里不应该这么弄的，如果为每个接口都添加Handler，那么会导致无法动态变更响应，这里应该用一个handler，然后handler里判断是哪个uri来取数据
+func buildMockHandlers(mux *http.ServeMux) {
 	//mux.Handle("/", loggingHandler(generateMockHandler("我是响应")))
 	for _, val := range projectSettings {
 		for _, api := range val.APIs {
@@ -151,10 +176,95 @@ func loggingHandler(next http.Handler) http.Handler {
 单元测试其实就是单个的功能方法测试
 */
 func toggleRefresh(flag bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatal("开启/监听过程中出现错误:", r)
+		}
+	}()
 	if flag {
+		log.Println("开启文件监听，注意地址等配置无法动态生效")
+		log.Println("<-如果要动态增加配置，如项目配置接口配置，请先增加文件后再完整修改原配置文件后保存->")
+		fileWatcher, _ := fsnotify.NewWatcher()
+		// 首先监听app.json
+		_ = fileWatcher.Add(constant.APP_CONFIG_PATH)
+		log.Println("添加", constant.APP_CONFIG_PATH, "文件监听")
+		for _, val := range projectSettings {
+			// 添加每个project.json的监听
+			_ = fileWatcher.Add(ph.Join(val.Path, constant.PROJECT_CONFIG_NAME))
+			log.Println("添加", ph.Join(val.Path, constant.PROJECT_CONFIG_NAME), "文件监听")
+			for _, api := range val.APIs {
+				// 监听如test01.json响应值
+				if len(api.ResponseRef) > 0 {
+					_ = fileWatcher.Add(ph.Join(val.Path, api.ResponseRef))
+					log.Println("添加", ph.Join(val.Path, api.ResponseRef), "文件监听")
+				}
+			}
+		}
+		// 开启处理文件事件（必须在协程里，否则init一直占用当前协程，导致Start无法执行
+		go func() {
+			for {
+				select {
+				case event := <- fileWatcher.Events:
+					log.Println("收到文件变更消息:", event)
+					// event.Name就是普通文件名
+					if event.Op&fsnotify.Write == fsnotify.Write {
+						// app.json
+						//if strings.HasSuffix(constant.APP_CONFIG_PATH, event.Name) {
+						// 先取巧，凡是任意文件有变动都直接整个更新
+						var lock = sync.Mutex{}
+						lock.Lock()
+						if len(event.Name) > 0 {
+							//fmt.Println("###########")
+							appConfig, _ := os.Open(constant.APP_CONFIG_PATH)
+							appBytes, _ := ioutil.ReadAll(appConfig)
+							var appSettings setting.AppSettings
+							_ = jsoniter.Unmarshal(appBytes, &appSettings)
+							if appSettings.AutoRefresh != autoRefresh {
+								autoRefresh = appSettings.AutoRefresh
+								_ = appConfig.Close()
+								lock.Unlock()
+								go func() {
+									toggleRefresh(autoRefresh)
+								}()
+								return
+							}
+							_ = appConfig.Close()
+							//fmt.Println("$$$$$$$$$$$")
+							// 项目的增减
+							processProject(appSettings.MockProjects)
+							// 判断是否有重复的项目（至于接口什么的太细了就不判断了）
+							count := linq.From(appSettings.MockProjects).SelectT(func(p setting.ProjectSettings) string {
+								return p.Name
+							}).Distinct().Count()
+							if count != len(appSettings.MockProjects) {
+								panic(fmt.Errorf("%s里存在相同的项目配置", constant.APP_CONFIG_NAME))
+							}
 
+							projectSettings = make(map[string]setting.ProjectSettings)
+							// 原来泛型参数的实现其实就是令整个接口都是空接口（所有接口也实现了空接口）
+							linq.From(appSettings.MockProjects).ForEachT(func(p setting.ProjectSettings) {
+								projectSettings[p.Name] = p
+							})
+							//fmt.Println(projectSettings)
+							//buildMockHandlers(serveMuxHandler)
+						} else if constant.PROJECT_CONFIG_NAME == event.Name {
+
+						} else {  // like test01.json
+
+						}
+						lock.Unlock()
+					}
+
+				case err := <- fileWatcher.Errors:
+					log.Fatal("监听的文件出现错误:", err.Error())
+				}
+			}
+		}()
 	} else {
-
+		log.Println("关闭文件监听")
+		if fileWatcher != nil {
+			_ = fileWatcher.Close()
+		}
 	}
 }
 

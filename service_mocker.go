@@ -37,6 +37,7 @@ var ARGS string
 其他方法貌似是OK的
  */
 func main() {
+	defer app.Stop()
 	//tmp := flag.Bool(constant.APP_AUTO_REFRESH_ARG, false, "是否自动刷新")
 	//flag.Parse()
 	//println(*tmp)
