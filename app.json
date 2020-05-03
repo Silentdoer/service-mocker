@@ -1,5 +1,6 @@
 {
   "autoRefresh": false,
+  "address": "localhost:8866",
   "mockProjects": [
     {
       "name": "demo01",

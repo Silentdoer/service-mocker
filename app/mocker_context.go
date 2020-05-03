@@ -8,12 +8,14 @@ import (
 	"github.com/json-iterator/go"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	ph "path"
 	"service-mocker/app/common"
 	"service-mocker/app/constant"
 	"service-mocker/app/setting"
 	"strings"
+	"time"
 )
 
 /*
@@ -22,6 +24,12 @@ import (
 var autoRefresh bool
 
 var projectSettings map[string]setting.ProjectSettings
+
+var address string
+
+var server *http.Server
+
+var serveMuxHandler *http.ServeMux
 
 func init() {
 	file, err := os.Open(constant.APP_CONFIG_PATH)
@@ -40,6 +48,8 @@ func init() {
 	if err != nil {
 		panic("应用配置不符合格式要求")
 	}
+
+	address = appSettings.Address
 
 	tmp := linq.From(os.Args).WhereT(func(a string) bool {
 		return strings.HasPrefix(a, fmt.Sprintf("-%s", constant.APP_AUTO_REFRESH_ARG))
@@ -75,9 +85,54 @@ func init() {
 	toggleRefresh(autoRefresh)
 }
 
+func Start() {
+	server = &http.Server{
+		Addr:         address,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+	}
+	serveMuxHandler = http.NewServeMux()
+	//serveMuxHandler.Handle("/", loggingHandler(http.HandlerFunc(handleMockRequests)))
+	initMockHandlers(serveMuxHandler)
+	server.Handler = serveMuxHandler
+	err := server.ListenAndServe()
+	if err != nil {
+		panic(fmt.Errorf("启动服务报错:%s\n", err.Error()))
+	}
+}
+
+func Stop() {
+	err := server.Close()
+	if err != nil {
+		panic(errors.New(fmt.Sprintf("关闭服务失败:%s\n", err.Error())))
+	}
+}
+
+func initMockHandlers(mux *http.ServeMux) {
+	mux.Handle("/", loggingHandler(generateMockHandler("我是响应")))
+}
+
+func generateMockHandler(respStr string) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		_, err := writer.Write([]byte(respStr))
+		if err != nil {
+			log.Println("响应数据", respStr, "失败")
+		}
+	})
+}
+
+func loggingHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		starts := time.Now()
+		log.Printf("Started->%s, %s\n", request.URL, request.Method)
+		next.ServeHTTP(writer, request)
+		log.Printf("Completed->%s in %v", request.URL, time.Since(starts))
+	})
+}
+
 /*
 单元测试其实就是单个的功能方法测试
- */
+*/
 func toggleRefresh(flag bool) {
 	if flag {
 
