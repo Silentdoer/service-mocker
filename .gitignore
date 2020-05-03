@@ -2,3 +2,5 @@ service_mocker
 .idea
 .vscode
 service-mocker
+output
+output/*

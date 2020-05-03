@@ -1,4 +1,13 @@
 {
   "prefix": "/demo02",
-  "apis": []
+  "APIs": [
+    {
+      "API": "/test01",
+      "responseValue": [
+        {
+          "fuck": "silentdoer是否"
+        }
+      ]
+    }
+  ]
 }
