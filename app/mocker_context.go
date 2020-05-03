@@ -301,6 +301,9 @@ func processProject(settings []setting.ProjectSettings) {
 		projectConfigBytes, _ := ioutil.ReadAll(projectConfigFile)
 		_ = jsoniter.Unmarshal(projectConfigBytes, set)
 		prefix := set.Prefix
+		//log.Println("app.json解析后参数：", *set)
+		//marshal, _ := jsoniter.Marshal(set)
+		//log.Println(string(marshal))
 		if !strings.HasPrefix(prefix, constant.URI_START_CHAR) {
 			panic(fmt.Sprintf("%s里没有配置正确的prefix:%s", constant.PROJECT_CONFIG_NAME, prefix))
 		}

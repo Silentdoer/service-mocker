@@ -4,10 +4,6 @@
     {
       "name": "demo01",
       "path": "mock-projects/demo01"
-    },
-    {
-      "name": "demo02",
-      "path": "/home/silentdoer/GoProjects/service-mocker/mock-projects/demo02"
     }
   ]
 }
