@@ -65,7 +65,7 @@ APP_ZIP_FILE_NAME = os.path.split(APP_ROOT_PATH)[1] + ".zip"
 # 参数可以是-r True或--rebuild=True（如果这两个都写了，且不一致那属于用的人傻叉，只取一个即可）
 REBUILD_OPTION = ["r", "rebuild"]
 
-REBUILD_COMMAND = "go build service_mocker.go"
+REBUILD_COMMAND = r"go build -ldflags '-s' service_mocker.go"
 
 
 # 全局定义之间需要分隔两行，而局部定义则一行即可

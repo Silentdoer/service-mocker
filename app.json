@@ -1,5 +1,5 @@
 {
-  "autoRefresh": false,
+  "autoRefresh": true,
   "mockProjects": [
     {
       "name": "demo01ss",
